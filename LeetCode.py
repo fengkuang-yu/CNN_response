@@ -18,32 +18,22 @@ np.random.seed(48)
 class LossHistory(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
         self.losses = {'batch':[], 'epoch':[]}
-        self.accuracy = {'batch':[], 'epoch':[]}
         self.val_loss = {'batch':[], 'epoch':[]}
-        self.val_acc = {'batch':[], 'epoch':[]}
 
     def on_batch_end(self, batch, logs={}):
         self.losses['batch'].append(logs.get('loss'))
-        self.accuracy['batch'].append(logs.get('acc'))
         self.val_loss['batch'].append(logs.get('val_loss'))
-        self.val_acc['batch'].append(logs.get('val_acc'))
 
     def on_epoch_end(self, batch, logs={}):
         self.losses['epoch'].append(logs.get('loss'))
-        self.accuracy['epoch'].append(logs.get('acc'))
         self.val_loss['epoch'].append(logs.get('val_loss'))
-        self.val_acc['epoch'].append(logs.get('val_acc'))
 
     def loss_plot(self, loss_type):
         iters = range(len(self.losses[loss_type]))
         plt.figure()
-        # acc
-        plt.plot(iters, self.accuracy[loss_type], 'r', label='train acc')
         # loss
         plt.plot(iters, self.losses[loss_type], 'g', label='train loss')
         if loss_type == 'epoch':
-            # val_acc
-            plt.plot(iters, self.val_acc[loss_type], 'b', label='val acc')
             # val_loss
             plt.plot(iters, self.val_loss[loss_type], 'k', label='val loss')
         plt.grid(True)
@@ -57,12 +47,12 @@ class Parameters:
     """
     网络的配置超参数
     """
-    batch_size = 50
-    regularization = 0.0001
+    batch_size = 128
+    regularization = 1e-3
     data_size = 20
     time_intervals = 8
-    epochs = 5
-    learning_rate = 1e-3
+    epochs = 100
+    learning_rate = 1e-4
     predict_intervals = 0  # 0 denotes 5mins
 
 
@@ -102,7 +92,7 @@ def train_test_data(param):
 
     # 输入10天的测试数据的标签
     input_data4 = test_labels.as_matrix()[8:]
-    return [input_data1, input_data2, input_data3, input_data4]
+    return [input_data1[:12000], input_data2[:12000], input_data3, input_data4]
 
 
 def train(data, param):
@@ -134,20 +124,24 @@ def train(data, param):
                      kernel_initializer=initializers.random_normal(stddev=0.1)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
     model.add(Flatten())
-    model.add(Dense(320, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
+    model.add(Dense(32, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(16, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_absolute_percentage_error', metrics=['mean_absolute_percentage_error'])
+    model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
+                  metrics=['mean_absolute_percentage_error', 'mean_absolute_error'])
     model.summary()
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=20, mode='auto')
+    reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
+                                                    factor=0.5,  # 触发时将学习率除以10
+                                                    patience=10)  # 如果验证损失在10轮内都没有改善，那么就触发这个回调函数
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
-              validation_split=0.2, callbacks=[history, early_stop], verbose=2)
+              validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
     model.save('E:/LeNet/LeNet-5_model-{epoch:02d}.h5')
     # [0.10342620456655367 0.9834000068902969]
-    loss, accuracy = model.evaluate(x_test, y_test, batch_size=50)
+    loss, mape, mae= model.evaluate(x_test, y_test, verbose=2)
 
-    print(loss, accuracy)
+    print(loss, mape, mae)
     history.loss_plot('epoch')
 
 
