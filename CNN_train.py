@@ -31,19 +31,20 @@ class LossHistory(keras.callbacks.Callback):
         self.losses['epoch'].append(logs.get('loss'))
         self.val_loss['epoch'].append(logs.get('val_loss'))
 
-    def loss_plot(self, loss_type):
+    def loss_plot(self, loss_type, param):
         iters = range(len(self.losses[loss_type]))
         plt.figure()
         # loss
-        plt.plot(iters, self.losses[loss_type], 'g', label='train loss')
+        plt.plot(iters, self.losses[loss_type], 'g', label='train')
         if loss_type == 'epoch':
             # val_loss
-            plt.plot(iters, self.val_loss[loss_type], 'k', label='val loss')
+            plt.plot(iters, self.val_loss[loss_type], 'k', label='validation')
         plt.grid(True)
-        plt.xlabel(loss_type)
-        plt.ylabel('loss')
-        plt.legend(loc="upper right")
-        plt.show()
+        plt.xlabel(loss_type, fontsize=14)
+        plt.ylabel('loss', fontsize=14)
+        plt.legend(loc="upper right", fontsize=14)
+        plt.savefig(os.path.join(param.file_path, 'figure\\', 'model_ST={}_{}.paf'.format(param.loop_num,
+                                                                                          param.time_intervals)))
 
 
 class Parameters:
@@ -52,13 +53,14 @@ class Parameters:
     """
     batch_size = 128
     regularization = 1e-3
-    loop_num = 2            # 预测使用的空间节点个数
-    time_intervals = 8      # 预测使用的时间滞后个数
-    epochs = 5
+    loop_num = 4           # 预测使用的空间节点个数
+    time_intervals = 4      # 预测使用的时间滞后个数
+    epochs = 200
     early_stop_epochs = 20  # 提前中断轮数
+    reduce_lr_epochs = 10
     learning_rate = 1e-4    # 初始学习率
     predict_intervals = 0   # 0,1,2,3分别表示5-20分钟预测
-    file_path = r'DATA\data_all.csv'
+    file_path = r'DATA\\'
     model_save_path = r'E:\yyh_result_CNN'
 
 
@@ -73,6 +75,7 @@ def train_test_data(param):
     import pandas as pd
     import numpy as np
     from sklearn.model_selection import train_test_split
+
     # 96表示的是159.57号检测线圈的数据
     select_loop = [x for x in range(96 - param.loop_num // 2, 96 + param.loop_num // 2)]
     def data_pro(data, time_steps=None):
@@ -92,12 +95,12 @@ def train_test_data(param):
         for i in range(data.shape[0] - time_steps + 1):
             temp[i, :] = data[i:i + time_steps, :].flatten()
         return temp
-    data = pd.read_csv(param.file_path)
-    label = np.array(data.iloc[param.time_intervals :,96]).reshape(-1, 1)
+    data = pd.read_csv(os.path.join(param.file_path, 'data_all.csv'))
+    label = np.array(data.iloc[param.time_intervals + param.predict_intervals :,96]).reshape(-1, 1)
     data = data.iloc[:, select_loop]
     data = data_pro(data, time_steps=param.time_intervals)
-    data = data[: -1]
-    return train_test_split(data, label, test_size=0.2, shuffle=False)
+    data = data[: -(1 + param.predict_intervals)]
+    return train_test_split(data, label, test_size=0.2, shuffle=True, random_state=42)
 
 
 def train(data, param):
@@ -111,9 +114,9 @@ def train(data, param):
     from keras.layers.convolutional import Conv2D, MaxPooling2D
     from keras.models import Sequential
     from keras import initializers
-    from keras import backend as K
     from keras import regularizers
-    x_train, y_train, x_test, y_test = data
+
+    x_train, x_test, y_train, y_test = data
     x_train = x_train.reshape((-1, param.loop_num, param.time_intervals, 1))
     y_train = y_train.reshape(-1, 1)
     x_test = x_test.reshape((-1, param.loop_num, param.time_intervals, 1))
@@ -139,18 +142,24 @@ def train(data, param):
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
-                                                  factor=0.5,  # 触发时将学习率除以10
-                                                  patience=10)  # 如果验证损失在10轮内都没有改善，那么就触发这个回调函数
+                                                  factor=0.5,  # 触发时将学习率除以5
+                                                  patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
-    model.save('E:/LeNet/LeNet-5_model-{epoch:02d}.h5')
-    # [0.10342620456655367 0.9834000068902969]
     loss, mape, mae= model.evaluate(x_test, y_test, verbose=2)
+    model.save(os.path.join(param.file_path,'model\\', 'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}.h5'.format(
+        param.loop_num, param.time_intervals, mape=mape, mae=mae)))
     print(loss, mape, mae)
     history.loss_plot('epoch')
 
 
 if __name__ == '__main__':
     params = Parameters()
-    Data = train_test_data(params)
-    train(Data, params)
+    time = [4,8,12,16,20,24,28,32,36,40]
+    space = [4,8,12,16,20,24,28,32,36,40]
+    for loop_num in time:
+        for time_intervals in space:
+            params.loop_num = loop_num
+            params.time_intervals = time_intervals
+            Data = train_test_data(params)
+            train(Data, params)
