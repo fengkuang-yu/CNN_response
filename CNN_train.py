@@ -159,15 +159,15 @@ def train(data, param):
 
 if __name__ == '__main__':
     predict_loop = [96]  # 选取不同的检测线圈进行预测
-    time = [1]  # 预测时间变化
-    space = [1]  # 预测使用的检测线圈数目
+    time = [6]  # 预测时间变化
+    space = [6]  # 预测使用的检测线圈数目
     pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
     for cur_loop in predict_loop:
         params.predict_loop = cur_loop
         with open(os.path.join(params.file_path,
                                'data\\loop{}res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
-            fieldnames = ['pred_interval', 'time_space', 'MAPE', 'MAE']
+            fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
         for cur_intervals in pred_intervals:
@@ -178,7 +178,8 @@ if __name__ == '__main__':
                     params.time_intervals = time_intervals
                     Data = train_test_data(params)
                     mape, mae = train(Data, params)
-                    with open(os.path.join(params.file_path, 'data\\res_error.csv'), 'a+', newline='') as csvfile:
+                    with open(os.path.join(params.file_path, 'data\\loop{}_res_error.csv'.format(params.predict_loop)),
+                              'a+', newline='') as csvfile:
                         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                         time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
                         writer.writerow({'pred_interval': (1+params.predict_intervals)*5, 'space_time': time_space, 'MAPE': mape, 'MAE': mae})
