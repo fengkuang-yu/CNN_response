@@ -175,8 +175,8 @@ if __name__ == '__main__':
             writer.writeheader()
         for cur_intervals in pred_intervals:
             params.predict_intervals = cur_intervals
-            for loop_num in time:
-                for time_intervals in space:
+            for loop_num in space:
+                for time_intervals in time:
                     params.loop_num = loop_num
                     params.time_intervals = time_intervals
                     Data = train_test_data(params)
@@ -184,4 +184,4 @@ if __name__ == '__main__':
                     with open(os.path.join(params.file_path, 'data\\res_error.csv'), 'a+', newline='') as csvfile:
                         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                         time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
-                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5, 'time_space': time_space, 'MAPE': mape, 'MAE': mae})
+                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5, 'space_time': time_space, 'MAPE': mape, 'MAE': mae})
