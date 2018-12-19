@@ -10,6 +10,7 @@
 
 import tensorflow
 import os
+import csv
 import keras
 import numpy as np
 import pandas as pd
@@ -17,11 +18,12 @@ import matplotlib.pylab as plt
 
 np.random.seed(48)
 
+
 # 写一个LossHistory类，保存loss和acc
 class LossHistory(keras.callbacks.Callback):
     def on_train_begin(self, logs={}):
-        self.losses = {'batch':[], 'epoch':[]}
-        self.val_loss = {'batch':[], 'epoch':[]}
+        self.losses = {'batch': [], 'epoch': []}
+        self.val_loss = {'batch': [], 'epoch': []}
 
     def on_batch_end(self, batch, logs={}):
         self.losses['batch'].append(logs.get('loss'))
@@ -43,8 +45,10 @@ class LossHistory(keras.callbacks.Callback):
         plt.xlabel(loss_type, fontsize=14)
         plt.ylabel('loss', fontsize=14)
         plt.legend(loc="upper right", fontsize=14)
-        plt.savefig(os.path.join(param.file_path, 'figure\\', 'model_ST={}_{}.paf'.format(param.loop_num,
-                                                                                          param.time_intervals)))
+        plt.savefig(os.path.join(param.file_path, 'figure\\',
+                                 'loss_ST={}_{}_pred_time{}.pdf'.format(param.loop_num,
+                                                                        param.time_intervals,
+                                                                        5*(param.predict_intervals+1))))
 
 
 class Parameters:
@@ -53,14 +57,15 @@ class Parameters:
     """
     batch_size = 128
     regularization = 1e-3
-    loop_num = 4           # 预测使用的空间节点个数
-    time_intervals = 4      # 预测使用的时间滞后个数
+    loop_num = 4  # 预测使用的空间节点个数
+    time_intervals = 4  # 预测使用的时间滞后个数
     epochs = 200
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
-    learning_rate = 1e-4    # 初始学习率
-    predict_intervals = 0   # 0,1,2,3分别表示5-20分钟预测
-    file_path = r'DATA\\'
+    learning_rate = 1e-4  # 初始学习率
+    predict_intervals = 0  # 0,1,2,3分别表示5-20分钟预测
+    predict_loop = 96  # 96表示159.57号检测线圈
+    file_path = r'E:\yyh\cnn_traffic_prediction'
     model_save_path = r'E:\yyh_result_CNN'
 
 
@@ -68,8 +73,6 @@ def train_test_data(param):
     """
     生成训练和测试数据
     :param param: 数据配置参数
-    :param start: 检测线圈的起始
-    :param end: 检测线圈的结束
     :return: x_train, x_test, y_train, y_test
     """
     import pandas as pd
@@ -77,7 +80,9 @@ def train_test_data(param):
     from sklearn.model_selection import train_test_split
 
     # 96表示的是159.57号检测线圈的数据
-    select_loop = [x for x in range(96 - param.loop_num // 2, 96 + param.loop_num // 2)]
+    select_loop = [x for x in range(param.predict_loop - param.loop_num // 2,
+                                    param.predict_loop + param.loop_num // 2)]
+
     def data_pro(data, time_steps=None):
         """
         数据处理，将列状的数据拓展开为行形式
@@ -85,7 +90,6 @@ def train_test_data(param):
         :param data: 输入交通数据
         :param time_steps: 分割时间长度
         :return: 处理过的数据
-        :param slide_sep: 是否连续切割数据
         """
         if time_steps is None:
             time_steps = 1
@@ -95,8 +99,9 @@ def train_test_data(param):
         for i in range(data.shape[0] - time_steps + 1):
             temp[i, :] = data[i:i + time_steps, :].flatten()
         return temp
-    data = pd.read_csv(os.path.join(param.file_path, 'data_all.csv'))
-    label = np.array(data.iloc[param.time_intervals + param.predict_intervals :,96]).reshape(-1, 1)
+
+    data = pd.read_csv(os.path.join(param.file_path, 'data\\' 'data_all.csv'))
+    label = np.array(data.iloc[param.time_intervals + param.predict_intervals:, param.predict_loop]).reshape(-1, 1)
     data = data.iloc[:, select_loop]
     data = data_pro(data, time_steps=param.time_intervals)
     data = data[: -(1 + param.predict_intervals)]
@@ -146,20 +151,37 @@ def train(data, param):
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
-    loss, mape, mae= model.evaluate(x_test, y_test, verbose=2)
-    model.save(os.path.join(param.file_path,'model\\', 'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}.h5'.format(
-        param.loop_num, param.time_intervals, mape=mape, mae=mae)))
-    print(loss, mape, mae)
-    history.loss_plot('epoch')
+    loss, mape, mae = model.evaluate(x_test, y_test, verbose=2)
+    model.save(os.path.join(param.file_path, 'model\\',
+                            'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
+                                param.loop_num, param.time_intervals, mape=mape, mae=mae,
+                                time=((1+param.predict_intervals)*5))))
+    history.loss_plot('epoch', param)
+    return [mape, mae]
 
 
 if __name__ == '__main__':
+    predict_loop = [96]  # 选取不同的检测线圈进行预测
+    time = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40]  # 预测时间变化
+    space = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40]  # 预测使用的检测线圈数目
+    pred_intervals = [3]  # 预测的时间长度
     params = Parameters()
-    time = [4,8,12,16,20,24,28,32,36,40]
-    space = [4,8,12,16,20,24,28,32,36,40]
-    for loop_num in time:
-        for time_intervals in space:
-            params.loop_num = loop_num
-            params.time_intervals = time_intervals
-            Data = train_test_data(params)
-            train(Data, params)
+    for cur_loop in predict_loop:
+        params.predict_loop = cur_loop
+        with open(os.path.join(params.file_path,
+                               'data\\loop{}res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
+            fieldnames = ['pred_interval', 'time_space', 'MAPE', 'MAE']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+        for cur_intervals in pred_intervals:
+            params.predict_intervals = cur_intervals
+            for loop_num in time:
+                for time_intervals in space:
+                    params.loop_num = loop_num
+                    params.time_intervals = time_intervals
+                    Data = train_test_data(params)
+                    mape, mae = train(Data, params)
+                    with open(os.path.join(params.file_path, 'data\\res_error.csv'), 'a+', newline='') as csvfile:
+                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                        time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
+                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5, 'time_space': time_space, 'MAPE': mape, 'MAE': mae})
