@@ -8,12 +8,10 @@
 @Desc    :
 """
 
-import tensorflow
 import os
 import csv
 import keras
 import numpy as np
-import pandas as pd
 import matplotlib.pylab as plt
 
 np.random.seed(48)
@@ -57,16 +55,15 @@ class Parameters:
     """
     batch_size = 128
     regularization = 1e-3
-    loop_num = 4  # 预测使用的空间节点个数
-    time_intervals = 4  # 预测使用的时间滞后个数
+    loop_num = 1  # 预测使用的空间节点个数
+    time_intervals = 1  # 预测使用的时间滞后个数
     epochs = 200
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
     learning_rate = 1e-4  # 初始学习率
     predict_intervals = 0  # 0,1,2,3分别表示5-20分钟预测
     predict_loop = 96  # 96表示159.57号检测线圈
-    file_path = r'E:\yyh\cnn_traffic_prediction'
-    model_save_path = r'E:\yyh_result_CNN'
+    file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation'
 
 
 def train_test_data(param):
@@ -162,9 +159,9 @@ def train(data, param):
 
 if __name__ == '__main__':
     predict_loop = [96]  # 选取不同的检测线圈进行预测
-    time = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40]  # 预测时间变化
-    space = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40]  # 预测使用的检测线圈数目
-    pred_intervals = [3]  # 预测的时间长度
+    time = [1]  # 预测时间变化
+    space = [1]  # 预测使用的检测线圈数目
+    pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
     for cur_loop in predict_loop:
         params.predict_loop = cur_loop
