@@ -150,11 +150,11 @@ def train(data, param):
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=0)
     loss, mape, mae = model.evaluate(x_test, y_test, verbose=0)
-    model.save(os.path.join(param.file_path, 'model\\',
-                            'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
-                                param.loop_num, param.time_intervals, mape=mape, mae=mae,
-                                time=((1+param.predict_intervals)*5))))
-    history.loss_plot('epoch', param)
+    # model.save(os.path.join(param.file_path, 'model\\',
+    #                         'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
+    #                             param.loop_num, param.time_intervals, mape=mape, mae=mae,
+    #                             time=((1+param.predict_intervals)*5))))
+    # history.loss_plot('epoch', param)
     return [mape, mae]
 
 
