@@ -8,6 +8,7 @@
 @Desc    :
 """
 
+import time
 import os
 import csv
 import keras
@@ -55,8 +56,8 @@ class Parameters:
     """
     batch_size = 128
     regularization = 1e-3
-    loop_num = 1  # 预测使用的空间节点个数
-    time_intervals = 1  # 预测使用的时间滞后个数
+    loop_num = 4  # 预测使用的空间节点个数
+    time_intervals = 4  # 预测使用的时间滞后个数
     epochs = 200
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
@@ -140,15 +141,15 @@ def train(data, param):
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
                   metrics=['mean_absolute_percentage_error', 'mean_absolute_error'])
-    model.summary()
+    # model.summary()
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
                                                   factor=0.5,  # 触发时将学习率除以5
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
-              validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
-    loss, mape, mae = model.evaluate(x_test, y_test, verbose=2)
+              validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=0)
+    loss, mape, mae = model.evaluate(x_test, y_test, verbose=0)
     model.save(os.path.join(param.file_path, 'model\\',
                             'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
                                 param.loop_num, param.time_intervals, mape=mape, mae=mae,
@@ -158,22 +159,33 @@ def train(data, param):
 
 
 if __name__ == '__main__':
-    predict_loop = [96]  # 选取不同的检测线圈进行预测
-    time = [6]  # 预测时间变化
-    space = [6]  # 预测使用的检测线圈数目
+    import tensorflow as tf
+    import keras.backend.tensorflow_backend as KTF
+
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True  # 不全部占满显存, 按需分配
+    sess = tf.Session(config=config)
+
+    KTF.set_session(sess)
+    time_start = time.time()
+    predict_loop = [104]  # 选取不同的检测线圈进行预测
+    time_lag = [x for x in range(4, 41, 4)]  # 预测时间变化
+    space = [x for x in range(32, 41, 4)]  # 预测使用的检测线圈数目
     pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
+    total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
+    counter = 0
     for cur_loop in predict_loop:
         params.predict_loop = cur_loop
         with open(os.path.join(params.file_path,
-                               'data\\loop{}res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
+                               'data\\loop{}_res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
             fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
         for cur_intervals in pred_intervals:
             params.predict_intervals = cur_intervals
             for loop_num in space:
-                for time_intervals in time:
+                for time_intervals in time_lag:
                     params.loop_num = loop_num
                     params.time_intervals = time_intervals
                     Data = train_test_data(params)
@@ -182,4 +194,9 @@ if __name__ == '__main__':
                               'a+', newline='') as csvfile:
                         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                         time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
-                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5, 'space_time': time_space, 'MAPE': mape, 'MAE': mae})
+                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5,
+                                         'space_time': time_space, 'MAPE': mape, 'MAE': mae})
+                    counter += 1
+                    print('COMPLETED {val:.2%}'.format(val=(counter/total)))
+    time_end = time.time()
+    print(time_end-time_start)

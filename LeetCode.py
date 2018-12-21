@@ -7,7 +7,11 @@
 @Time    :   2018/11/26 18:52
 @Desc    :
 """
-import os
-import re
-a = os.listdir(r'D:\桌面\temp')
-pattern = re.compile('=')
+class addSum():
+    def sum(self, n):
+        if n == 1:
+            return 1
+        else:
+            return n + self.sum(n-1)
+a = addSum()
+a.sum(4)
