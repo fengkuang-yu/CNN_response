@@ -14,30 +14,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pylab as plt
 
 
-def read_data(file_path):
-    """
-    from file_path read data and return formed data
-    :param file_path:
-    :return:
-    """
-    temp = pd.read_csv(file_path)
-    mape_pd = pd.DataFrame(temp.MAPE.values.reshape(10, 10),
-                           index=['space4', 'space8', 'space12', 'space16', 'space20',
-                                  'space24', 'space28', 'space32', 'space36', 'space40'],
-                           columns=['time_lag4', 'time_lag8', 'time_lag12', 'time_lag16', 'time_lag20',
-                                    'time_lag24', 'time_lag28', 'time_lag32', 'time_lag36', 'time_lag40'])
-    mae_pd = pd.DataFrame(temp.MAE.values.reshape(10, 10),
-                          index=['space4', 'space8', 'space12', 'space16', 'space20',
-                                 'space24', 'space28', 'space32', 'space36', 'space40'],
-                          columns=['time_lag4', 'time_lag8', 'time_lag12', 'time_lag16', 'time_lag20',
-                                   'time_lag24', 'time_lag28', 'time_lag32', 'time_lag36', 'time_lag40'])
-    return [mape_pd, mae_pd]
-
-...
-
 if __name__ == '__main__':
-    temp = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\96_5-20.csv')
-    temp = temp.iloc[200:300, :]
+    temp = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\10min\loop96_res_error10.csv')
     mape_pd = pd.DataFrame(temp.MAPE.values.reshape(10, 10),
                            index=['space4', 'space8', 'space12', 'space16', 'space20',
                                   'space24', 'space28', 'space32', 'space36', 'space40'],
