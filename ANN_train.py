@@ -130,35 +130,28 @@ def train(data, param):
     from keras import regularizers
 
     x_train, x_test, y_train, y_test = data
-    x_train = x_train.reshape((-1, param.loop_num, param.time_intervals, 1))
+    x_train = x_train.reshape((-1, param.loop_num * param.time_intervals))
     y_train = y_train.reshape(-1, 1)
-    x_test = x_test.reshape((-1, param.loop_num, param.time_intervals, 1))
+    x_test = x_test.reshape((-1, param.loop_num * param.time_intervals))
     y_test = y_test.reshape(-1, 1)
     # def mape_error(y_true, y_pred):
     #     return K.mean(K.abs(y_pred - y_true)/y_true, axis=-1)
     # model=load_model('E:/LeNet/LeNet-5_model.h5')
     model = Sequential()
-    model.add(Conv2D(16, (3, 3), strides=(1, 1), input_shape=(param.loop_num, param.time_intervals, 1),
-                     padding='same', activation='relu',
-                     kernel_initializer=initializers.random_normal(stddev=0.1)))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Conv2D(32, (3, 3), strides=(1, 1), padding='same', activation='relu',
-                     kernel_initializer=initializers.random_normal(stddev=0.1)))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Flatten())
-    model.add(Dense(32, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
+    model.add(Dense(32, activation='relu', input_dim=param.loop_num * param.time_intervals,
+                    kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(16, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
                   metrics=['mean_absolute_percentage_error', 'mean_absolute_error'])
-    # model.summary()
+    model.summary()
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
-                                                  factor=0.5,  # 触发时将学习率除以5
+                                                  factor=0.2,  # 触发时将学习率除以5
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
-              validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=0)
+              validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
     loss, mape, mae = model.evaluate(x_test, y_test, verbose=0)
     # model.save(os.path.join(param.file_path, 'model\\',
     #                         'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
