@@ -13,9 +13,11 @@ import numpy as np
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pylab as plt
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
 
 def corr_heat_map():
+    plt.figure(figsize=(5, 5))
     ax = plt.subplot()
     sns.set()
     data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\data_all.csv')
@@ -23,13 +25,26 @@ def corr_heat_map():
     corr_matrix = data.corr()
     cmap = sns.cubehelix_palette(start=1.5, rot=3, gamma=0.8, as_cmap=True)
     sns.heatmap(corr_matrix, ax=ax, cmap=cmap)
-    ax.set_title('Correlation Between Loop Detectors')
-    ax.set_xlabel('Loop Detector Number')
-    ax.set_ylabel('Loop Detector Number')
+    ax.set_title('')
+    ax.set_xlabel('Loop Detector Number', fontsize=12)
+    ax.set_ylabel('Loop Detector Number', fontsize=12)
     ax.xaxis.set_tick_params(rotation=45, labelsize=8)
     ax.yaxis.set_tick_params(rotation=45, labelsize=8)
     plt.show()
-    corr_matrix.to_csv(r"D:\桌面\corr_matrix.csv")
+
+
+def auto_corr():
+    plt.figure(figsize=(5, 5))
+    ax = plt.subplot()
+    sns.set()
+    ax.set_xlabel('Time lag', fontsize=12)
+    ax.set_ylabel('Autocorrelation', fontsize=12)
+    ax.xaxis.set_tick_params(labelsize=8)
+    ax.yaxis.set_tick_params(labelsize=8)
+    data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\data_all.csv')
+    data = data.iloc[:, 96]
+    plot_acf(data, lags=200, ax=ax, linewidth=0.3, title='')
+    plt.show()
 
 
 if __name__ == '__main__':

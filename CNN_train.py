@@ -64,7 +64,7 @@ class Parameters:
     learning_rate = 1e-4  # 初始学习率
     predict_intervals = 0  # 0,1,2,3分别表示5-20分钟预测
     predict_loop = 96  # 96表示159.57号检测线圈
-    file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation'
+    file_path = r'E:\yyh\cnn_traffic_prediction'
 
 
 def train_test_data(param):
@@ -74,7 +74,6 @@ def train_test_data(param):
     :return: x_train, x_test, y_train, y_test
     """
     import pandas as pd
-    import numpy as np
     from sklearn.model_selection import train_test_split
 
     # 96表示的是159.57号检测线圈的数据
@@ -166,31 +165,36 @@ if __name__ == '__main__':
     config.gpu_options.allow_growth = True  # 不全部占满显存, 按需分配
     sess = tf.Session(config=config)
 
+    # 设置session
     KTF.set_session(sess)
     time_start = time.time()
-    predict_loop = [104]  # 选取不同的检测线圈进行预测
-    time_lag = [x for x in range(4, 41, 4)]  # 预测时间变化
-    space = [x for x in range(32, 41, 4)]  # 预测使用的检测线圈数目
+    predict_loop = [96]  # 选取不同的检测线圈进行预测
+    time_lag = [x for x in range(4, 81, 4)]  # 预测时间变化
+    space = [x for x in range(8, 81, 4)]  # 预测使用的检测线圈数目
     pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
     total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
     counter = 0
     for cur_loop in predict_loop:
         params.predict_loop = cur_loop
-        with open(os.path.join(params.file_path,
-                               'data\\loop{}_res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
-            fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
         for cur_intervals in pred_intervals:
             params.predict_intervals = cur_intervals
+            with open(os.path.join(params.file_path,
+                                   'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
+                                                                         (1 + params.predict_intervals) * 5)),
+                      'w', newline='') as csvfile:
+                fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
             for loop_num in space:
                 for time_intervals in time_lag:
                     params.loop_num = loop_num
                     params.time_intervals = time_intervals
                     Data = train_test_data(params)
                     mape, mae = train(Data, params)
-                    with open(os.path.join(params.file_path, 'data\\loop{}_res_error.csv'.format(params.predict_loop)),
+                    with open(os.path.join(params.file_path,
+                                           'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
+                                                                                 (1+params.predict_intervals)*5)),
                               'a+', newline='') as csvfile:
                         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                         time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
