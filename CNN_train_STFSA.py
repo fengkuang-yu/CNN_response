@@ -3,10 +3,11 @@
 """
 @Author  :   {Yu Yinghao}
 @Software:   PyCharm
-@File    :   CNN_train.py
-@Time    :   2018/12/12 20:18
+@File    :   CNN_train_STFSA.py
+@Time    :   2019/1/9 21:38
 @Desc    :
 """
+
 
 import time
 import os
@@ -47,7 +48,7 @@ class LossHistory(keras.callbacks.Callback):
         plt.savefig(os.path.join(param.file_path, 'figure\\',
                                  'loss_ST={}_{}_pred_time{}.pdf'.format(param.loop_num,
                                                                         param.time_intervals,
-                                                                        5*(param.predict_intervals+1))))
+                                                                        5 * (param.predict_intervals + 1))))
 
 
 class Parameters:
@@ -157,6 +158,43 @@ def train(data, param):
     return [mape, mae]
 
 
+def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
+    """
+    对于时空特征进行选择
+    :param param: 网络配置参数类
+    :param step: 每次增加数据的步长
+    :param cur_space: 现在的空间点数目
+    :param cur_time: 现在的时间滞后数目
+    :param eps: 提前终止的要求
+    :return: 输入数据的维度大小和最终误差
+    """
+    param.time_intervals = opt_time = cur_time
+    param.loop_num = opt_space = cur_space
+    data = train_test_data(param)
+    opt_error = train(data, param)[0]
+    while cur_space - opt_space < eps * step:
+        param.loop_num = cur_space
+        data = train_test_data(param)
+        cur_error = train(data, param)[0]
+        if cur_error < opt_error:
+            opt_space = cur_space
+            opt_error = cur_error
+        else:
+            cur_space += step
+    param.time_intervals = opt_time
+    while cur_time - opt_time < eps * step:
+        param.time_intervals = cur_time
+        data = train_test_data(param)
+        cur_error = train(data, param)[0]
+        if cur_error < opt_error:
+            opt_time = cur_time
+            opt_error = cur_error
+        else:
+            cur_time += step
+
+    return [opt_space, opt_time], opt_error
+
+
 if __name__ == '__main__':
     import tensorflow as tf
     import keras.backend.tensorflow_backend as KTF
@@ -169,38 +207,6 @@ if __name__ == '__main__':
     KTF.set_session(sess)
     time_start = time.time()
     predict_loop = [96]  # 选取不同的检测线圈进行预测
-    time_lag = [x for x in range(4, 81, 4)]  # 预测时间变化
-    space = [x for x in range(8, 81, 4)]  # 预测使用的检测线圈数目
     pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
-    total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
-    counter = 0
-    for cur_loop in predict_loop:
-        params.predict_loop = cur_loop
-        for cur_intervals in pred_intervals:
-            params.predict_intervals = cur_intervals
-            with open(os.path.join(params.file_path,
-                                   'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
-                                                                         (1 + params.predict_intervals) * 5)),
-                      'w', newline='') as csvfile:
-                fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-            for loop_num in space:
-                for time_intervals in time_lag:
-                    params.loop_num = loop_num
-                    params.time_intervals = time_intervals
-                    Data = train_test_data(params)
-                    mape, mae = train(Data, params)
-                    with open(os.path.join(params.file_path,
-                                           'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
-                                                                                 (1+params.predict_intervals)*5)),
-                              'a+', newline='') as csvfile:
-                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                        time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
-                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5,
-                                         'space_time': time_space, 'MAPE': mape, 'MAE': mae})
-                    counter += 1
-                    print('COMPLETED {val:.2%}'.format(val=(counter/total)))
-    time_end = time.time()
-    print(time_end-time_start)
+    STFSA(params)
