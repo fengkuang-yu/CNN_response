@@ -8,13 +8,14 @@
 @Desc    :
 """
 
-
 import time
 import os
 import csv
 import keras
 import numpy as np
 import matplotlib.pylab as plt
+import tensorflow as tf
+import keras.backend.tensorflow_backend as KTF
 
 np.random.seed(48)
 
@@ -65,7 +66,7 @@ class Parameters:
     learning_rate = 1e-4  # 初始学习率
     predict_intervals = 0  # 0,1,2,3分别表示5-20分钟预测
     predict_loop = 96  # 96表示159.57号检测线圈
-    file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation'
+    file_path = r'D:\yuyinghao\comparision_methons'
 
 
 def train_test_data(param):
@@ -98,7 +99,7 @@ def train_test_data(param):
             temp[i, :] = data[i:i + time_steps, :].flatten()
         return temp
 
-    data = pd.read_csv(os.path.join(param.file_path, 'data\\' 'data_all.csv'))
+    data = pd.read_csv(os.path.join(param.file_path, 'DATA\\' 'data_all.csv'))
     label = np.array(data.iloc[param.time_intervals + param.predict_intervals:, param.predict_loop]).reshape(-1, 1)
     data = data.iloc[:, select_loop]
     data = data_pro(data, time_steps=param.time_intervals)
@@ -145,7 +146,7 @@ def train(data, param):
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
-                                                  factor=0.5,  # 触发时将学习率除以5
+                                                  factor=0.3,  # 触发时将学习率乘以0.3
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=0)
@@ -171,42 +172,67 @@ def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
     param.time_intervals = opt_time = cur_time
     param.loop_num = opt_space = cur_space
     data = train_test_data(param)
-    opt_error = train(data, param)[0]
+    opt_error = train(data, param)
+    num = 0
     while cur_space - opt_space < eps * step:
+        print(num)
         param.loop_num = cur_space
         data = train_test_data(param)
-        cur_error = train(data, param)[0]
-        if cur_error < opt_error:
+        cur_error = train(data, param)
+        if opt_error[0] - cur_error[0] > 0.1:
             opt_space = cur_space
             opt_error = cur_error
+            cur_space += step
         else:
             cur_space += step
+        num += 1
     param.time_intervals = opt_time
+    print('tuning up spatial')
     while cur_time - opt_time < eps * step:
+        print(num)
         param.time_intervals = cur_time
         data = train_test_data(param)
-        cur_error = train(data, param)[0]
-        if cur_error < opt_error:
+        cur_error = train(data, param)
+        if opt_error[0] - cur_error[0] > 0.1:
             opt_time = cur_time
             opt_error = cur_error
+            cur_time += step
         else:
             cur_time += step
-
-    return [opt_space, opt_time], opt_error
+        num += 1
+    param.loop_num = opt_time
+    return param, opt_error
 
 
 if __name__ == '__main__':
-    import tensorflow as tf
-    import keras.backend.tensorflow_backend as KTF
-
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True  # 不全部占满显存, 按需分配
     sess = tf.Session(config=config)
-
-    # 设置session
     KTF.set_session(sess)
-    time_start = time.time()
-    predict_loop = [96]  # 选取不同的检测线圈进行预测
-    pred_intervals = [0]  # 预测的时间长度
+
+    # 配置网络参数
     params = Parameters()
-    STFSA(params)
+    file_name = os.path.join(params.file_path, 'DATA\\STFSA_res_error_all_105.csv')
+    predict_loop = [x for x in range(105, 107)]
+    pred_intervals = [0, 1, 2, 3]
+
+    with open(file_name, 'w', newline='') as csvfile:
+        fieldnames = ['loop_num', 'pred_intervals', 'input_size', 'MAPE', 'MAE', 'run_time']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+    for loop_num in predict_loop:
+        params.predict_loop = loop_num
+        print('current loop num is {}'.format(predict_loop))
+        for time_num in pred_intervals:
+            params.predict_intervals = time_num
+            time_start = time.time()
+            params, error = STFSA(params)
+            run_time = time.time() - time_start
+            with open(file_name, 'a+', newline='') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
+                writer.writerow({'loop_num': params.predict_loop, 'pred_intervals': (1 + params.predict_intervals) * 5,
+                                 'input_size': time_space, 'MAPE': error[0], 'MAE': error[1], 'run_time': run_time})
+
+
