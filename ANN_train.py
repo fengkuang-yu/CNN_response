@@ -24,6 +24,9 @@ import csv
 import keras
 import numpy as np
 import matplotlib.pylab as plt
+from keras.layers import Dense
+from keras.models import Sequential
+from keras import regularizers
 
 np.random.seed(48)
 
@@ -123,41 +126,26 @@ def train(data, param):
     :param param: 网络配置的参数
     :return: 返回神经网络的测试数据集表现
     """
-    from keras.layers import Dense, Flatten
-    from keras.layers.convolutional import Conv2D, MaxPooling2D
-    from keras.models import Sequential
-    from keras import initializers
-    from keras import regularizers
-
     x_train, x_test, y_train, y_test = data
     x_train = x_train.reshape((-1, param.loop_num * param.time_intervals))
     y_train = y_train.reshape(-1, 1)
     x_test = x_test.reshape((-1, param.loop_num * param.time_intervals))
     y_test = y_test.reshape(-1, 1)
-    # def mape_error(y_true, y_pred):
-    #     return K.mean(K.abs(y_pred - y_true)/y_true, axis=-1)
-    # model=load_model('E:/LeNet/LeNet-5_model.h5')
     model = Sequential()
-    model.add(Dense(32, activation='relu', input_dim=param.loop_num * param.time_intervals,
+    model.add(Dense(100, activation='relu', input_dim=param.loop_num * param.time_intervals,
                     kernel_regularizer=regularizers.l2(param.regularization)))
-    model.add(Dense(16, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
+    model.compile(optimizer='adam', loss='mean_squared_error',
                   metrics=['mean_absolute_percentage_error', 'mean_absolute_error'])
     model.summary()
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
-                                                  factor=0.2,  # 触发时将学习率除以5
+                                                  factor=0.3,  # 触发时将学习率乘以0.3
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=2)
     loss, mape, mae = model.evaluate(x_test, y_test, verbose=0)
-    # model.save(os.path.join(param.file_path, 'model\\',
-    #                         'model_ST={}_{}_mape={mape:.3f}_mae={mae:.3f}_time_lag{time}.h5'.format(
-    #                             param.loop_num, param.time_intervals, mape=mape, mae=mae,
-    #                             time=((1+param.predict_intervals)*5))))
-    # history.loss_plot('epoch', param)
     return [mape, mae]
 
 
@@ -168,38 +156,15 @@ if __name__ == '__main__':
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True  # 不全部占满显存, 按需分配
     sess = tf.Session(config=config)
-
     KTF.set_session(sess)
-    time_start = time.time()
-    predict_loop = [104]  # 选取不同的检测线圈进行预测
-    time_lag = [x for x in range(4, 41, 4)]  # 预测时间变化
-    space = [x for x in range(32, 41, 4)]  # 预测使用的检测线圈数目
-    pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
-    total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
-    counter = 0
-    for cur_loop in predict_loop:
-        params.predict_loop = cur_loop
-        with open(os.path.join(params.file_path,
-                               'data\\loop{}_res_error.csv'.format(params.predict_loop)), 'w', newline='') as csvfile:
-            fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-        for cur_intervals in pred_intervals:
-            params.predict_intervals = cur_intervals
-            for loop_num in space:
-                for time_intervals in time_lag:
-                    params.loop_num = loop_num
-                    params.time_intervals = time_intervals
-                    Data = train_test_data(params)
-                    mape, mae = train(Data, params)
-                    with open(os.path.join(params.file_path, 'data\\loop{}_res_error.csv'.format(params.predict_loop)),
-                              'a+', newline='') as csvfile:
-                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                        time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
-                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5,
-                                         'space_time': time_space, 'MAPE': mape, 'MAE': mae})
-                    counter += 1
-                    print('COMPLETED {val:.2%}'.format(val=(counter/total)))
-    time_end = time.time()
-    print(time_end-time_start)
+
+    params.time_intervals = 4   # 使用多长的时滞来预测
+    params.loop_num = 16  # 使用多少空间点数
+    params.predict_intervals = 0  # 预测多长的时间间隔0表示5分钟
+    params.predict_loop = 96  # 对于道路的哪个节点进行预测
+
+    data = train_test_data(params)
+    mape, mae = train(data, params)
+
+
