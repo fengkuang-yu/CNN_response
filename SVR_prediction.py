@@ -138,6 +138,10 @@ def train(data, param):
 
 if __name__ == '__main__':
     params = Parameters()
+    params.read_file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\data_all.csv'
+    params.save_file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\KNN.csv'
+    params.time_intervals = 5
+    params.loop_num = 4
     with open(params.save_file_path, 'w', newline='') as csvfile:
         fieldnames = ['loop_number',
                       'MAPE_5min', 'MAE_5min',
@@ -148,6 +152,7 @@ if __name__ == '__main__':
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
     for select_loop in range(92, 102):
+        params.predict_loop = select_loop
         result = []
         time_start = time.time()
         for pred_interval in range(4):
@@ -164,5 +169,5 @@ if __name__ == '__main__':
                              'MAPE_10min': result[2], 'MAE_10min': result[3],
                              'MAPE_15min': result[4], 'MAE_15min': result[5],
                              'MAPE_20min': result[6], 'MAE_20min': result[7],
-                             'running time': time_end - time_start})
+                             'running_time': time_end - time_start})
         print(select_loop)
