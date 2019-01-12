@@ -74,7 +74,7 @@ class Parameters:
     epochs = 200
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
-    learning_rate = 1e-4  # 初始学习率
+    learning_rate = 1e-3  # 初始学习率
     predict_intervals = 0  # 0,1,2,3分别表示5-20分钟预测
     predict_loop = 96  # 96表示159.57号检测线圈
     file_path = r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation'
@@ -159,10 +159,10 @@ if __name__ == '__main__':
     KTF.set_session(sess)
     params = Parameters()
 
-    params.time_intervals = 4   # 使用多长的时滞来预测
-    params.loop_num = 16  # 使用多少空间点数
-    params.predict_intervals = 0  # 预测多长的时间间隔0表示5分钟
-    params.predict_loop = 96  # 对于道路的哪个节点进行预测
+    params.time_intervals = 4  # 使用多长的时滞来预测
+    params.loop_num = 28  # 使用多少空间点数
+    params.predict_intervals = 1  # 预测多长的时间间隔0表示5分钟
+    params.predict_loop = 94  # 对于道路的哪个节点进行预测
 
     data = train_test_data(params)
     mape, mae = train(data, params)

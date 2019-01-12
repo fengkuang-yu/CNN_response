@@ -59,6 +59,7 @@ class Parameters:
     loop_num = 4  # 预测使用的空间节点个数
     time_intervals = 4  # 预测使用的时间滞后个数
     epochs = 200
+    drop_rate = 0.25
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
     learning_rate = 1e-4  # 初始学习率
@@ -112,7 +113,7 @@ def train(data, param):
     :param param: 网络配置的参数
     :return: 返回神经网络的测试数据集表现
     """
-    from keras.layers import Dense, Flatten
+    from keras.layers import Dense, Flatten, BatchNormalization, Activation, Dropout
     from keras.layers.convolutional import Conv2D, MaxPooling2D
     from keras.models import Sequential
     from keras import initializers
@@ -126,21 +127,25 @@ def train(data, param):
     # def mape_error(y_true, y_pred):
     #     return K.mean(K.abs(y_pred - y_true)/y_true, axis=-1)
     # model=load_model('E:/LeNet/LeNet-5_model.h5')
+    # convolution 1st layer
     model = Sequential()
     model.add(Conv2D(16, (3, 3), strides=(1, 1), input_shape=(param.loop_num, param.time_intervals, 1),
                      padding='same', activation='relu',
                      kernel_initializer=initializers.random_normal(stddev=0.1)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+
+    # convolution 2nd layer
     model.add(Conv2D(32, (3, 3), strides=(1, 1), padding='same', activation='relu',
                      kernel_initializer=initializers.random_normal(stddev=0.1)))
     model.add(MaxPooling2D(pool_size=(2, 2)))
+
     model.add(Flatten())
     model.add(Dense(32, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(16, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
                   metrics=['mean_absolute_percentage_error', 'mean_absolute_error'])
-    # model.summary()
+    model.summary()
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
@@ -160,47 +165,54 @@ def train(data, param):
 if __name__ == '__main__':
     import tensorflow as tf
     import keras.backend.tensorflow_backend as KTF
-
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True  # 不全部占满显存, 按需分配
     sess = tf.Session(config=config)
-
-    # 设置session
     KTF.set_session(sess)
-    time_start = time.time()
-    predict_loop = [96]  # 选取不同的检测线圈进行预测
-    time_lag = [x for x in range(4, 81, 4)]  # 预测时间变化
-    space = [x for x in range(8, 81, 4)]  # 预测使用的检测线圈数目
-    pred_intervals = [0]  # 预测的时间长度
+
+    # time_start = time.time()
+    # predict_loop = [96]  # 选取不同的检测线圈进行预测
+    # time_lag = [x for x in range(4, 81, 4)]  # 预测时间变化
+    # space = [x for x in range(8, 81, 4)]  # 预测使用的检测线圈数目
+    # pred_intervals = [0]  # 预测的时间长度
     params = Parameters()
-    total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
-    counter = 0
-    for cur_loop in predict_loop:
-        params.predict_loop = cur_loop
-        for cur_intervals in pred_intervals:
-            params.predict_intervals = cur_intervals
-            with open(os.path.join(params.file_path,
-                                   'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
-                                                                         (1 + params.predict_intervals) * 5)),
-                      'w', newline='') as csvfile:
-                fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-            for loop_num in space:
-                for time_intervals in time_lag:
-                    params.loop_num = loop_num
-                    params.time_intervals = time_intervals
-                    Data = train_test_data(params)
-                    mape, mae = train(Data, params)
-                    with open(os.path.join(params.file_path,
-                                           'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
-                                                                                 (1+params.predict_intervals)*5)),
-                              'a+', newline='') as csvfile:
-                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                        time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
-                        writer.writerow({'pred_interval': (1+params.predict_intervals)*5,
-                                         'space_time': time_space, 'MAPE': mape, 'MAE': mae})
-                    counter += 1
-                    print('COMPLETED {val:.2%}'.format(val=(counter/total)))
-    time_end = time.time()
-    print(time_end-time_start)
+
+    params.time_intervals = 8  # 使用多长的时滞来预测
+    params.loop_num = 16  # 使用多少空间点数
+    params.predict_intervals = 0  # 预测多长的时间间隔0表示5分钟
+    params.predict_loop = 86  # 对于道路的哪个节点进行预测
+
+    data = train_test_data(params)
+    mape, mae = train(data, params)
+
+    # total = len(predict_loop) * len(time_lag) * len(space) * len(pred_intervals)
+    # counter = 0
+    # for cur_loop in predict_loop:
+    #     params.predict_loop = cur_loop
+    #     for cur_intervals in pred_intervals:
+    #         params.predict_intervals = cur_intervals
+    #         with open(os.path.join(params.file_path,
+    #                                'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
+    #                                                                      (1 + params.predict_intervals) * 5)),
+    #                   'w', newline='') as csvfile:
+    #             fieldnames = ['pred_interval', 'space_time', 'MAPE', 'MAE']
+    #             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    #             writer.writeheader()
+    #         for loop_num in space:
+    #             for time_intervals in time_lag:
+    #                 params.loop_num = loop_num
+    #                 params.time_intervals = time_intervals
+    #                 Data = train_test_data(params)
+    #                 mape, mae = train(Data, params)
+    #                 with open(os.path.join(params.file_path,
+    #                                        'model\\loop{}_res_error{}.csv'.format(params.predict_loop,
+    #                                                                              (1+params.predict_intervals)*5)),
+    #                           'a+', newline='') as csvfile:
+    #                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    #                     time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
+    #                     writer.writerow({'pred_interval': (1+params.predict_intervals)*5,
+    #                                      'space_time': time_space, 'MAPE': mape, 'MAE': mae})
+    #                 counter += 1
+    #                 print('COMPLETED {val:.2%}'.format(val=(counter/total)))
+    # time_end = time.time()
+    # print(time_end-time_start)

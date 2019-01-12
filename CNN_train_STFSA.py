@@ -61,6 +61,7 @@ class Parameters:
     loop_num = 4  # 预测使用的空间节点个数
     time_intervals = 4  # 预测使用的时间滞后个数
     epochs = 200
+    drop_rate = 0.25
     early_stop_epochs = 20  # 提前中断轮数
     reduce_lr_epochs = 10
     learning_rate = 1e-4  # 初始学习率
@@ -114,7 +115,7 @@ def train(data, param):
     :param param: 网络配置的参数
     :return: 返回神经网络的测试数据集表现
     """
-    from keras.layers import Dense, Flatten
+    from keras.layers import Dense, Flatten, BatchNormalization, Activation, Dropout
     from keras.layers.convolutional import Conv2D, MaxPooling2D
     from keras.models import Sequential
     from keras import initializers
@@ -128,16 +129,28 @@ def train(data, param):
     # def mape_error(y_true, y_pred):
     #     return K.mean(K.abs(y_pred - y_true)/y_true, axis=-1)
     # model=load_model('E:/LeNet/LeNet-5_model.h5')
+    # convolution 1st layer
     model = Sequential()
     model.add(Conv2D(16, (3, 3), strides=(1, 1), input_shape=(param.loop_num, param.time_intervals, 1),
                      padding='same', activation='relu',
                      kernel_initializer=initializers.random_normal(stddev=0.1)))
+    model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(param.drop_rate))
+
+    # convolution 2nd layer
     model.add(Conv2D(32, (3, 3), strides=(1, 1), padding='same', activation='relu',
                      kernel_initializer=initializers.random_normal(stddev=0.1)))
+    model.add(BatchNormalization())
     model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Dropout(param.drop_rate))
+
     model.add(Flatten())
-    model.add(Dense(32, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
+    model.add(Dense(32, kernel_regularizer=regularizers.l2(param.regularization)))
+    model.add(BatchNormalization())
+    model.add(Activation('elu'))
+    model.add(Dropout(param.drop_rate))
+
     model.add(Dense(16, activation='relu', kernel_regularizer=regularizers.l2(param.regularization)))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mean_absolute_percentage_error',
@@ -146,7 +159,7 @@ def train(data, param):
     history = LossHistory()
     early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=param.early_stop_epochs, mode='min')
     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='val_loss',  # 监控模型的验证损失
-                                                  factor=0.3,  # 触发时将学习率乘以0.3
+                                                  factor=0.3,  # 触发时将学习率除以5
                                                   patience=param.reduce_lr_epochs)
     model.fit(x_train, y_train, batch_size=param.batch_size, epochs=param.epochs, shuffle=True,
               validation_split=0.2, callbacks=[history, early_stop, reduce_lr], verbose=0)

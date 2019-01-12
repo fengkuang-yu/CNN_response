@@ -169,7 +169,7 @@ def train(data, param):
     return [mape, mae]
 
 
-def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
+def STFSA(param, step=4, eps=4):
     """
     对于时空特征进行选择
     :param param: 网络配置参数类
@@ -179,10 +179,12 @@ def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
     :param eps: 提前终止的要求
     :return: 输入数据的维度大小和最终误差
     """
-    param.time_intervals = opt_time = cur_time
-    param.loop_num = opt_space = cur_space
+    param.loop_num = 4
+    param.time_intervals = 4
     data = train_test_data(param)
     opt_error = train(data, param)
+    opt_space = 4
+    cur_space = 2 * step
     num = 0
     while cur_space - opt_space < eps * step:
         print(num)
@@ -194,7 +196,10 @@ def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
             opt_error = cur_error
         cur_space += step
         num += 1
-    param.time_intervals = opt_time
+    # param.time_intervals = opt_time
+    param.loop_num = opt_space
+    opt_time = 4
+    cur_time = 2 * step
     print('tuning up spatial')
     while cur_time - opt_time < eps * step:
         print(num)
@@ -206,7 +211,7 @@ def STFSA(param, step=4, cur_space=4, cur_time=4, eps=4):
             opt_error = cur_error
         cur_time += step
         num += 1
-    param.loop_num = opt_time
+    param.time_intervals = opt_time
     return param, opt_error
 
 
@@ -219,7 +224,7 @@ if __name__ == '__main__':
     # 配置网络参数
     params = Parameters()
     file_name = os.path.join(params.file_path, 'DATA\\STFSA_res_error_all_105.csv')
-    predict_loop = [x for x in range(105, 107)]
+    predict_loop = [x for x in range(86, 107)]
     pred_intervals = [0, 1, 2, 3]
 
     with open(file_name, 'w', newline='') as csvfile:
@@ -240,5 +245,3 @@ if __name__ == '__main__':
                 time_space = 'space{}*time{}'.format(params.loop_num, params.time_intervals)
                 writer.writerow({'loop_num': params.predict_loop, 'pred_intervals': (1 + params.predict_intervals) * 5,
                                  'input_size': time_space, 'MAPE': error[0], 'MAE': error[1], 'run_time': run_time})
-
-
