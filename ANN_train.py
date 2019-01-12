@@ -159,10 +159,10 @@ if __name__ == '__main__':
     KTF.set_session(sess)
     params = Parameters()
 
-    params.time_intervals = 4  # 使用多长的时滞来预测
+    params.time_intervals = 32  # 使用多长的时滞来预测
     params.loop_num = 28  # 使用多少空间点数
-    params.predict_intervals = 1  # 预测多长的时间间隔0表示5分钟
-    params.predict_loop = 94  # 对于道路的哪个节点进行预测
+    params.predict_intervals = 3  # 预测多长的时间间隔0表示5分钟
+    params.predict_loop = 95  # 对于道路的哪个节点进行预测
 
     data = train_test_data(params)
     mape, mae = train(data, params)
