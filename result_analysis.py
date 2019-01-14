@@ -116,32 +116,52 @@ def generate_MAPE_3D(loop_num, pred_time):
 def bar_baselines():
     import numpy as np
     import matplotlib.pylab as plt
-    n_groups = 5
-    SVR = (0.84472049689441, 0.972477064220183, 1.0, 0.9655172413793104, 0.970970970970971)
-    SARIMA = (1.0, 0.992992992992993, 1.0, 0.9992348890589136, 0.9717125382262997)
-    KNN = (0.70853858784893, 0.569731081926204, 0.8902900378310215, 0.8638638638638638, 0.5803008248423096)
-    STFSA_CNN = (0.90786948176583, 0.796122576610381, 0.8475120385232745, 0.8873762376237624, 0.5803008248423096)
+
+    plt.style.use('seaborn')
+    n_groups = 4
+
+    # running time
+    SVR = (2.40, 2.76, 2.47, 2.68)
+    SARIMA = (4.03, 4.02, 4.03, 4.03)
+    KNN = (0.15, 0.14, 0.15, 0.15)
+    ANN = (0.6346, 0.68768, 0.691, 0.6104)
+    CNN = (0.816, 0.817, 0.8497, 0.9075)
+    STFSA_ANN = (7.71, 11.6, 11.88, 15.71)
+    STFSA_CNN = (11.4, 12.33, 13.5, 19.31)
+
+    # MAPE
+    # SVR = (7.925,8.356,9.228,9.438)
+    # SARIMA = (10.309,10.635,10.907,11.095)
+    # KNN = (8.074,8.501,8.646,8.819)
+    # ANN = (6.346,8.768,9.621,10.442)
+    # CNN = (6.292,8.171,8.497,9.075)
+    # STFSA_ANN = (6.548,7.821,8.590,9.010)
+    # STFSA_CNN = (6.000,7.365,8.043,8.169)
+
 
     fig, ax = plt.subplots(figsize=(8,6))
+    plt.rcParams['savefig.dpi'] = 100  # 图片像素
+    plt.rcParams['figure.dpi'] = 100  # 分辨率
     index = np.arange(n_groups)
-    bar_width = 0.3
-    opacity = 0.4
+    index = index + 0.15
+    bar_width = 0.2
+    opacity = 0.9
 
-    rects1 = plt.bar(index, SVR, bar_width / 2, alpha=opacity, label='SVR')
-    rects2 = plt.bar(index + 0.5 * bar_width, SARIMA, bar_width / 2, alpha=opacity, label='SARIMA')
+    plt.bar(index, SVR, bar_width / 2, alpha=opacity, label='SVR')
+    plt.bar(index + 0.5 * bar_width, SARIMA, bar_width / 2, alpha=opacity, label='SARIMA')
+    plt.bar(index + 1.0 * bar_width, KNN, bar_width / 2, alpha=opacity, label='KNN')
+    plt.bar(index + 1.5 * bar_width, ANN, bar_width / 2, alpha=opacity, label='ANN')
+    plt.bar(index + 2.0 * bar_width, CNN, bar_width / 2, alpha=opacity, label='CNN')
+    plt.bar(index + 2.5 * bar_width, STFSA_ANN, bar_width / 2, alpha=opacity, label='STFSA+ANN')
+    plt.bar(index + 3.0 * bar_width, STFSA_CNN, bar_width / 2, alpha=opacity, label='STFSA+CNN',color='darkorange')
 
-    rects3 = plt.bar(index + 1.0 * bar_width, KNN, bar_width / 2, alpha=opacity, label='KNN')
-    rects4 = plt.bar(index + 1.5 * bar_width, STFSA_CNN, bar_width / 2, alpha=opacity, label='STFSA+CNN')
-
-    # plt.xlabel('Category', fontsize=16)
-    plt.ylabel('Training time', fontsize=16)
-    plt.title('Scores by group and Category')
-    # plt.xticks(index - 0.2+ 2*bar_width, ('balde', 'bunny', 'dragon', 'happy', 'pillow'))
-    plt.xticks(index - 0.2 + 2 * bar_width, ('5min', '10min', '15min', '20min', 'pillow'), fontsize = 12)
-    plt.yticks(fontsize=12)  # change the num axis size
-    plt.ylim(0, 1.5)  # The ceil
-    # plt.legend(bbox_to_anchor=(0,-0.15,1,0), ncol=4, loc=2, mode='expand',borderaxespad=0)
-    plt.legend(ncol=4, loc=2, mode='expand', borderaxespad=0)
+    plt.xlabel('Forecasting Horizon', fontsize=16, color='k')
+    # plt.ylabel('Training time(Minutes)', fontsize=16, color='k')
+    plt.ylabel('Training Time (Minutes)', fontsize=16, color='k')
+    plt.xticks(index-0.05 + 2 * bar_width, ('5min', '10min', '15min', '20min'), fontsize=12, color='k')
+    plt.yticks(fontsize=12, color='k')  # change the num axis size
+    plt.ylim(0, 25)  # The ceil
+    plt.legend(ncol=7, loc=2, mode='expand', fontsize=10)
     plt.tight_layout()
     plt.show()
 
