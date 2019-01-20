@@ -121,22 +121,22 @@ def bar_baselines():
     n_groups = 4
 
     # running time
-    SVR = (2.40, 2.76, 2.47, 2.68)
-    SARIMA = (4.03, 4.02, 4.03, 4.03)
-    KNN = (0.15, 0.14, 0.15, 0.15)
-    ANN = (0.6346, 0.68768, 0.691, 0.6104)
-    CNN = (0.816, 0.817, 0.8497, 0.9075)
-    STFSA_ANN = (7.71, 11.6, 11.88, 15.71)
-    STFSA_CNN = (11.4, 12.33, 13.5, 19.31)
+    # SVR = (2.40, 2.76, 2.47, 2.68)
+    # SARIMA = (4.03, 4.02, 4.03, 4.03)
+    # KNN = (0.15, 0.14, 0.15, 0.15)
+    # ANN = (0.6346, 0.68768, 0.691, 0.6104)
+    # CNN = (0.816, 0.817, 0.8497, 0.9075)
+    # STFSA_ANN = (7.71, 11.6, 11.88, 15.71)
+    # STFSA_CNN = (11.4, 12.33, 13.5, 19.31)
 
     # MAPE
-    # SVR = (7.925,8.356,9.228,9.438)
-    # SARIMA = (10.309,10.635,10.907,11.095)
-    # KNN = (8.074,8.501,8.646,8.819)
-    # ANN = (6.346,8.768,9.621,10.442)
-    # CNN = (6.292,8.171,8.497,9.075)
-    # STFSA_ANN = (6.548,7.821,8.590,9.010)
-    # STFSA_CNN = (6.000,7.365,8.043,8.169)
+    SVR = (7.925,8.356,9.228,9.438)
+    SARIMA = (10.309,10.635,10.907,11.095)
+    KNN = (8.074,8.501,8.646,8.819)
+    ANN = (6.346,8.768,9.621,10.442)
+    CNN = (6.292,8.171,8.497,9.075)
+    STFSA_ANN = (6.548,7.821,8.590,9.010)
+    STFSA_CNN = (6.000,7.365,8.043,8.169)
 
 
     fig, ax = plt.subplots(figsize=(8,6))
@@ -155,13 +155,13 @@ def bar_baselines():
     plt.bar(index + 2.5 * bar_width, STFSA_ANN, bar_width / 2, alpha=opacity, label='STFSA+ANN')
     plt.bar(index + 3.0 * bar_width, STFSA_CNN, bar_width / 2, alpha=opacity, label='STFSA+CNN',color='darkorange')
 
-    plt.xlabel('Forecasting Horizon', fontsize=16, color='k')
+    plt.xlabel('Forecasting Horizon', fontsize=18, color='k')
     # plt.ylabel('Training time(Minutes)', fontsize=16, color='k')
-    plt.ylabel('Training Time (Minutes)', fontsize=16, color='k')
-    plt.xticks(index-0.05 + 2 * bar_width, ('5min', '10min', '15min', '20min'), fontsize=12, color='k')
-    plt.yticks(fontsize=12, color='k')  # change the num axis size
-    plt.ylim(0, 25)  # The ceil
-    plt.legend(ncol=7, loc=2, mode='expand', fontsize=10)
+    plt.ylabel('Mean Absolute Percentage Error (MAPE)', fontsize=18, color='k')
+    plt.xticks(index-0.05 + 2 * bar_width, ('5min', '10min', '15min', '20min'), fontsize=14, color='k')
+    plt.yticks(fontsize=14, color='k')  # change the num axis size
+    plt.ylim(0, 13)  # The ceil
+    plt.legend(ncol=7, loc=2, mode='expand', fontsize=14, handlelength=1, handletextpad=0.2)
     plt.tight_layout()
     plt.show()
 
