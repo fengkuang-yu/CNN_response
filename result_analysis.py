@@ -22,14 +22,15 @@ def corr_heat_map():
     sns.set()
     data = pd.read_csv(r'D:\Users\yyh\Pycharm_workspace\CNN_response_simulation\data\data_all.csv')
     data = data.iloc[:, 66:126]
+    data.columns = [x for x in range(66, 126)]
     corr_matrix = data.corr()
     cmap = sns.cubehelix_palette(start=1.5, rot=3, gamma=0.8, as_cmap=True)
     sns.heatmap(corr_matrix, ax=ax, cmap=cmap)
     ax.set_title('')
     ax.set_xlabel('Loop Detector Number', fontsize=12)
     ax.set_ylabel('Loop Detector Number', fontsize=12)
-    ax.xaxis.set_tick_params(rotation=45, labelsize=8)
-    ax.yaxis.set_tick_params(rotation=45, labelsize=8)
+    ax.xaxis.set_tick_params(rotation=90, labelsize=8)
+    ax.yaxis.set_tick_params(rotation=0, labelsize=8)
     plt.show()
 
 
